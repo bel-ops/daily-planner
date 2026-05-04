@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>毎日のプランナー</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;color:#1a1a1a;padding:1.5rem;}
+.app{max-width:760px;margin:0 auto;}
+.header-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;}
+.date-label{font-size:13px;color:#888;}
+.main-title{font-size:22px;font-weight:500;}
+.progress-label{font-size:13px;color:#aaa;}
+.progress-bar-wrap{height:4px;background:#e5e5e3;border-radius:2px;margin-bottom:1.5rem;}
+.progress-bar{height:4px;border-radius:2px;background:#1a1a1a;transition:width 0.3s;}
+.section-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px;}
+.time-card{background:#fff;border:0.5px solid rgba(0,0,0,0.1);border-radius:12px;padding:1rem;}
+.time-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.time-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.morning .time-icon{background:#FAEEDA;}
+.afternoon .time-icon{background:#E6F1FB;}
+.evening .time-icon{background:#EEEDFE;}
+.time-title{font-size:14px;font-weight:500;}
+.todo-list{display:flex;flex-direction:column;gap:8px;}
+.todo-item{display:flex;align-items:flex-start;gap:8px;}
+.todo-check{width:18px;height:18px;border-radius:4px;border:0.5px solid #ccc;background:transparent;cursor:pointer;flex-shrink:0;margin-top:1px;appearance:none;-webkit-appearance:none;}
+.todo-check:checked{background:#1a1a1a;border-color:#1a1a1a;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 12 12' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 6l3 3 5-5' stroke='white' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-size:12px;background-repeat:no-repeat;background-position:center;}
+.todo-text{font-size:13px;line-height:1.5;}
+.todo-text.done{text-decoration:line-through;color:#aaa;}
+.add-btn{display:flex;align-items:center;gap:4px;margin-top:10px;font-size:12px;color:#aaa;background:none;border:none;cursor:pointer;padding:0;}
+.add-btn:hover{color:#666;}
+.add-input{width:100%;font-size:13px;border:none;border-bottom:0.5px solid #ccc;background:transparent;color:#1a1a1a;padding:4px 0;outline:none;margin-top:8px;display:none;}
+.card{background:#fff;border:0.5px solid rgba(0,0,0,0.1);border-radius:12px;padding:1rem 1.25rem;margin-bottom:12px;}
+.section-title{font-size:14px;font-weight:500;margin-bottom:12px;}
+.record-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.record-item{display:flex;flex-direction:column;gap:6px;}
+.record-label{font-size:12px;color:#888;}
+.record-input{width:100%;font-size:15px;font-weight:500;border:none;border-bottom:0.5px solid #e0e0e0;background:transparent;color:#1a1a1a;padding:4px 0;outline:none;text-align:center;}
+.record-unit{font-size:11px;color:#aaa;text-align:center;}
+.save-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border:0.5px solid #ccc;border-radius:8px;font-size:13px;background:#1a1a1a;color:#fff;cursor:pointer;margin-top:12px;}
+.save-btn:hover{opacity:0.85;}
+.mood-row{display:flex;gap:8px;margin-bottom:10px;}
+.mood-btn{padding:5px 14px;border-radius:20px;border:0.5px solid #ccc;font-size:12px;background:transparent;color:#888;cursor:pointer;}
+.mood-btn.selected{background:#1a1a1a;color:#fff;border-color:transparent;}
+.memo-area{width:100%;min-height:80px;font-size:13px;font-family:inherit;border:0.5px solid #e0e0e0;border-radius:8px;background:#f9f9f7;color:#1a1a1a;padding:10px 12px;outline:none;resize:vertical;line-height:1.7;}
+.memo-area:focus{border-color:#aaa;}
+.chart-tabs{display:flex;gap:6px;margin-bottom:12px;}
+.stab{padding:5px 14px;border-radius:20px;font-size:13px;border:0.5px solid #ccc;background:transparent;color:#888;cursor:pointer;}
+.stab.active{background:#1a1a1a;color:#fff;border-color:transparent;}
+.chart-legend{display:flex;gap:16px;margin-bottom:8px;font-size:12px;color:#888;}
+.chart-legend span{display:flex;align-items:center;gap:4px;}
+.legend-dot{width:10px;height:10px;border-radius:2px;}
+.chart-wrap{position:relative;width:100%;height:200px;}
+.empty-chart{display:flex;align-items:center;justify-content:center;height:180px;font-size:13px;color:#aaa;border:0.5px dashed #ddd;border-radius:8px;}
+.history-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid #f0f0ee;font-size:13px;}
+.history-row:last-child{border-bottom:none;}
+.history-date{color:#888;}
+.history-vals{display:flex;gap:12px;}
+.metric-val{font-size:11px;color:#aaa;}
+.ai-section{background:#f9f9f7;border:0.5px solid rgba(0,0,0,0.08);border-radius:12px;padding:1rem 1.25rem;margin-bottom:12px;}
+.ai-badge{font-size:11px;background:#fff;border:0.5px solid #ddd;border-radius:20px;padding:2px 8px;color:#888;}
+.ai-note{font-size:12px;color:#aaa;margin-top:10px;line-height:1.6;padding:10px;background:#fff;border-radius:8px;border:0.5px solid #eee;}
+.ai-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.ai-btn{padding:6px 14px;border:0.5px solid #ccc;border-radius:20px;font-size:13px;background:#fff;color:#1a1a1a;cursor:pointer;}
+.ai-btn:hover{background:#f0f0ee;}
+.ai-btn.primary{background:#1a1a1a;color:#fff;border-color:transparent;}
+.save-msg{font-size:12px;color:#aaa;margin-left:10px;}
+@media(max-width:600px){
+  body{padding:1rem;}
+  .section-grid{grid-template-columns:1fr;}
+  .record-grid{grid-template-columns:repeat(2,1fr);}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="header-row">
+  <div>
+    <div class="date-label" id="date-label"></div>
+    <div class="main-title">今日のプラン</div>
+  </div>
+  <div class="progress-label" id="progress-label">0 / 0 完了</div>
+</div>
+
+<div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar" style="width:0%"></div></div>
+
+<div class="section-grid">
+  <div class="time-card morning">
+    <div class="time-header"><div class="time-icon">🌅</div><div class="time-title">朝</div></div>
+    <div class="todo-list" id="morning-list"></div>
+    <button class="add-btn" onclick="showInput('morning')">＋ 追加</button>
+    <input class="add-input" id="morning-input" placeholder="タスクを入力..." onkeydown="addTodo(event,'morning')">
+  </div>
+  <div class="time-card afternoon">
+    <div class="time-header"><div class="time-icon">☀️</div><div class="time-title">昼</div></div>
+    <div class="todo-list" id="afternoon-list"></div>
+    <button class="add-btn" onclick="showInput('afternoon')">＋ 追加</button>
+    <input class="add-input" id="afternoon-input" placeholder="タスクを入力..." onkeydown="addTodo(event,'afternoon')">
+  </div>
+  <div class="time-card evening">
+    <div class="time-header"><div class="time-icon">🌙</div><div class="time-title">夜</div></div>
+    <div class="todo-list" id="evening-list"></div>
+    <button class="add-btn" onclick="showInput('evening')">＋ 追加</button>
+    <input class="add-input" id="evening-input" placeholder="タスクを入力..." onkeydown="addTodo(event,'evening')">
+  </div>
+</div>
+
+<div class="card">
+  <div class="section-title">今日の記録</div>
+  <div class="record-grid">
+    <div class="record-item">
+      <div class="record-label">体重</div>
+      <input class="record-input" type="number" step="0.1" placeholder="62.0" id="r-weight">
+      <div class="record-unit">kg</div>
+    </div>
+    <div class="record-item">
+      <div class="record-label">運動</div>
+      <input class="record-input" type="number" placeholder="—" id="r-exercise">
+      <div class="record-unit">分</div>
+    </div>
+    <div class="record-item">
+      <div class="record-label">AI学習</div>
+      <input class="record-input" type="number" placeholder="—" id="r-ai">
+      <div class="record-unit">分</div>
+    </div>
+    <div class="record-item">
+      <div class="record-label">食事メモ</div>
+      <input class="record-input" type="text" placeholder="—" id="r-meal" style="font-size:12px;">
+      <div class="record-unit">メモ</div>
+    </div>
+  </div>
+  <button class="save-btn" onclick="saveRecord()">記録を保存</button>
+  <span class="save-msg" id="save-msg"></span>
+</div>
+
+<div class="card">
+  <div class="section-title">振り返りメモ</div>
+  <div class="mood-row">
+    <button class="mood-btn" onclick="selectMood(this,'最高')">最高</button>
+    <button class="mood-btn" onclick="selectMood(this,'良い')">良い</button>
+    <button class="mood-btn" onclick="selectMood(this,'普通')">普通</button>
+    <button class="mood-btn" onclick="selectMood(this,'辛い')">辛い</button>
+  </div>
+  <textarea class="memo-area" id="memo-area" placeholder="今日うまくいったこと、明日改善したいこと…"></textarea>
+  <button class="save-btn" onclick="saveMemo()">メモを保存</button>
+  <span class="save-msg" id="memo-msg"></span>
+</div>
+
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div class="section-title" style="margin:0;">データグラフ</div>
+    <div class="chart-tabs">
+      <button class="stab active" onclick="switchGraph('weight',this)">体重</button>
+      <button class="stab" onclick="switchGraph('ai',this)">AI学習累積</button>
+    </div>
+  </div>
+  <div class="chart-legend" id="chart-legend">
+    <span><span class="legend-dot" style="background:#378ADD;"></span>体重 (kg)</span>
+  </div>
+  <div id="empty-msg" class="empty-chart">記録を保存するとグラフが表示されます</div>
+  <div class="chart-wrap" id="chart-wrap" style="display:none;">
+    <canvas id="mainChart" role="img" aria-label="データグラフ"></canvas>
+  </div>
+</div>
+
+<div class="card">
+  <div class="section-title">記録履歴</div>
+  <div id="history-list"><div style="font-size:13px;color:#aaa;">まだ記録がありません</div></div>
+</div>
+
+<div class="ai-section">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+    <div class="section-title" style="margin:0;">AIプラン提案</div>
+    <div class="ai-badge">Claude連携</div>
+  </div>
+  <div class="ai-note" id="ai-prompt-box">「今日のプランを作成」ボタンを押すと、入力した記録をもとにプロンプトが生成されます。それをClaudeに貼り付けて使ってください。</div>
+  <div class="ai-actions">
+    <button class="ai-btn primary" onclick="buildPrompt('plan')">今日のプランを作成</button>
+    <button class="ai-btn" onclick="buildPrompt('recovery')">リカバリープランを作成</button>
+    <button class="ai-btn" onclick="buildPrompt('analyze')">記録を分析</button>
+  </div>
+</div>
+
+</div>
+
+<script>
+const STORAGE_KEY = 'daily_planner_records';
+const TODOS_KEY = 'daily_planner_todos';
+
+const defaultTodos = {
+  morning: ["白米を半分にすると決める","体重を記録する"],
+  afternoon: ["食後に10分歩く"],
+  evening: ["ClaudeかCursorを15分触る","明日のタスクを1つ決める"]
+};
+
+let todos = JSON.parse(localStorage.getItem(TODOS_KEY) || 'null') || JSON.parse(JSON.stringify(defaultTodos));
+const checked = {morning:[],afternoon:[],evening:[]};
+let records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let currentMood = '';
+let mainChart = null;
+let currentGraph = 'weight';
+
+function saveTodos(){ localStorage.setItem(TODOS_KEY, JSON.stringify(todos)); }
+
+function renderList(s){
+  const list = document.getElementById(s+'-list');
+  list.innerHTML = '';
+  todos[s].forEach((text,i)=>{
+    const div = document.createElement('div'); div.className = 'todo-item';
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.className = 'todo-check';
+    cb.checked = checked[s].includes(i);
+    cb.onchange = ()=>{ toggle(s,i,cb.checked); };
+    const span = document.createElement('span');
+    span.className = 'todo-text' + (cb.checked ? ' done' : '');
+    span.textContent = text;
+    div.appendChild(cb); div.appendChild(span); list.appendChild(div);
+  });
+  updateProgress();
+}
+
+function toggle(s,i,val){
+  if(val){ if(!checked[s].includes(i)) checked[s].push(i); }
+  else { checked[s] = checked[s].filter(x=>x!==i); }
+  renderList(s);
+}
+
+function showInput(s){
+  const inp = document.getElementById(s+'-input');
+  inp.style.display = 'block'; inp.focus();
+}
+
+function addTodo(e,s){
+  if(e.key==='Enter'){
+    const inp = document.getElementById(s+'-input');
+    const val = inp.value.trim();
+    if(val){ todos[s].push(val); saveTodos(); renderList(s); }
+    inp.value = ''; inp.style.display = 'none';
+  }
+  if(e.key==='Escape'){ document.getElementById(s+'-input').style.display='none'; }
+}
+
+function updateProgress(){
+  const total = todos.morning.length + todos.afternoon.length + todos.evening.length;
+  const done = checked.morning.length + checked.afternoon.length + checked.evening.length;
+  document.getElementById('progress-label').textContent = done + ' / ' + total + ' 完了';
+  document.getElementById('progress-bar').style.width = total ? Math.round(done/total*100)+'%' : '0%';
+}
+
+function setDate(){
+  const d = new Date();
+  const days = ['日','月','火','水','木','金','土'];
+  document.getElementById('date-label').textContent =
+    d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日（'+days[d.getDay()]+'）';
+}
+
+function saveRecord(){
+  const w = document.getElementById('r-weight').value;
+  const ex = document.getElementById('r-exercise').value;
+  const ai = document.getElementById('r-ai').value;
+  const meal = document.getElementById('r-meal').value;
+  const d = new Date();
+  const dateStr = (d.getMonth()+1)+'/'+d.getDate();
+  records.push({
+    date: dateStr,
+    weight: w ? parseFloat(parseFloat(w).toFixed(1)) : null,
+    exercise: ex ? parseInt(ex) : null,
+    ai: ai ? parseInt(ai) : null,
+    meal
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  const msg = document.getElementById('save-msg');
+  msg.textContent = '保存しました ✓';
+  setTimeout(()=>{ msg.textContent=''; }, 2000);
+  renderHistory();
+  renderChart();
+}
+
+function saveMemo(){
+  const text = document.getElementById('memo-area').value.trim();
+  if(!text && !currentMood) return;
+  const msg = document.getElementById('memo-msg');
+  msg.textContent = '保存しました ✓';
+  setTimeout(()=>{ msg.textContent=''; }, 2000);
+}
+
+function selectMood(btn, mood){
+  currentMood = mood;
+  document.querySelectorAll('.mood-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+function renderHistory(){
+  const el = document.getElementById('history-list');
+  if(records.length===0){
+    el.innerHTML='<div style="font-size:13px;color:#aaa;">まだ記録がありません</div>';
+    return;
+  }
+  el.innerHTML = '';
+  [...records].reverse().forEach(r=>{
+    const row = document.createElement('div'); row.className = 'history-row';
+    const vals = [];
+    if(r.weight!==null) vals.push('<span><span class="metric-val">体重</span> '+r.weight.toFixed(1)+'kg</span>');
+    if(r.exercise!==null) vals.push('<span><span class="metric-val">運動</span> '+r.exercise+'分</span>');
+    if(r.ai!==null) vals.push('<span><span class="metric-val">AI</span> '+r.ai+'分</span>');
+    row.innerHTML = '<span class="history-date">'+r.date+'</span><div class="history-vals">'+vals.join('')+'</div>';
+    el.appendChild(row);
+  });
+}
+
+function switchGraph(type, btn){
+  currentGraph = type;
+  document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const legend = document.getElementById('chart-legend');
+  legend.innerHTML = type==='weight'
+    ? '<span><span class="legend-dot" style="background:#378ADD;"></span>体重 (kg)</span>'
+    : '<span><span class="legend-dot" style="background:#1D9E75;"></span>AI学習 累積時間 (分)</span>';
+  renderChart();
+}
+
+function renderChart(){
+  const hasWeight = records.some(r=>r.weight!==null);
+  const hasAi = records.some(r=>r.ai!==null);
+  const hasData = (currentGraph==='weight'&&hasWeight)||(currentGraph==='ai'&&hasAi);
+
+  document.getElementById('empty-msg').style.display = hasData ? 'none' : 'flex';
+  document.getElementById('chart-wrap').style.display = hasData ? 'block' : 'none';
+
+  if(!hasData){ if(mainChart){ mainChart.destroy(); mainChart=null; } return; }
+  if(mainChart){ mainChart.destroy(); mainChart=null; }
+
+  let labels, dataPoints, color, label;
+  if(currentGraph==='weight'){
+    const filtered = records.filter(r=>r.weight!==null);
+    labels = filtered.map(r=>r.date);
+    dataPoints = filtered.map(r=>r.weight);
+    color = '#378ADD'; label = '体重 (kg)';
+  } else {
+    labels = records.map(r=>r.date);
+    let cum = 0;
+    dataPoints = records.map(r=>{ cum+=(r.ai||0); return cum; });
+    color = '#1D9E75'; label = 'AI学習累積 (分)';
+  }
+
+  const canvas = document.getElementById('mainChart');
+  mainChart = new Chart(canvas, {
+    type: 'line',
+    data: { labels, datasets: [{
+      label, data: dataPoints,
+      borderColor: color, backgroundColor: color+'22',
+      borderWidth: 2, pointRadius: 4, pointBackgroundColor: color,
+      tension: 0.3, fill: true
+    }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font:{size:11}, color:'#888', maxRotation:0, autoSkip:false } },
+        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font:{size:11}, color:'#888' } }
+      }
+    }
+  });
+}
+
+function buildPrompt(type){
+  const w = document.getElementById('r-weight').value;
+  const ex = document.getElementById('r-exercise').value;
+  const ai = document.getElementById('r-ai').value;
+  const meal = document.getElementById('r-meal').value;
+  let prompt = '';
+
+  if(type==='plan'){
+    prompt = '今日のToDoプランを提案してください。\n目標：体重を減らす・AIスキル向上（Claude/Cursor）\n制約：合計30分以内\n';
+    if(w) prompt += '体重：'+w+'kg\n';
+    if(ex) prompt += '運動：'+ex+'分\n';
+    if(ai) prompt += 'AI学習：'+ai+'分\n';
+    if(meal) prompt += '食事：'+meal+'\n';
+    prompt += '朝・昼・夜に分けて具体的に3つずつ提案してください。';
+  } else if(type==='recovery'){
+    prompt = '今日のプランが崩れました。体重を減らしてAIスキルを上げるという目標に対して、今すぐできる最低限のリカバリー行動を1つだけ教えてください。';
+  } else {
+    if(records.length===0){
+      prompt = 'まだ記録がないですが、体重62kgスタートで体重を減らしてAIスキルを向上させるためのアドバイスをください。';
+    } else {
+      const summary = records.map(r=>`${r.date}：体重${r.weight||'?'}kg、運動${r.exercise||0}分、AI${r.ai||0}分`).join('\n');
+      prompt = '以下の記録データを分析して、体重減少とAI学習の傾向と改善点を教えてください。\nスタート体重：62kg\n\n'+summary;
+    }
+  }
+
+  document.getElementById('ai-prompt-box').textContent = prompt;
+  navigator.clipboard.writeText(prompt).then(()=>{
+    const box = document.getElementById('ai-prompt-box');
+    const orig = box.textContent;
+    box.style.borderColor = '#1a1a1a';
+    setTimeout(()=>{ box.style.borderColor = ''; }, 1500);
+  }).catch(()=>{});
+}
+
+['morning','afternoon','evening'].forEach(renderList);
+setDate();
+renderHistory();
+renderChart();
+</script>
+</body>
+</html>
